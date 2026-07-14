@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>管理后台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:#f0f2f5;color:#1a1a2e;min-height:100vh;
+}
+.hidden{display:none!important}
+
+/* 登录页 */
+.login-page{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.login-card{
+  background:#fff;border-radius:12px;box-shadow:0 10px 25px -5px rgba(0,0,0,.1);
+  padding:40px 32px;text-align:center;max-width:360px;width:100%;
+}
+.login-card h1{font-size:1.25rem;margin-bottom:4px}
+.login-card p{color:#6b7280;font-size:.875rem;margin-bottom:24px}
+.login-input{
+  width:100%;padding:10px 14px;font-size:.9375rem;font-family:inherit;
+  border:1.5px solid #e5e7eb;border-radius:8px;outline:none;margin-bottom:16px;
+}
+.login-input:focus{border-color:#1a1a2e;box-shadow:0 0 0 3px rgba(26,26,46,.1)}
+.login-error{color:#e94560;font-size:.8125rem;margin-bottom:12px;display:none}
+
+/* 后台面板 */
+.admin-page{padding:24px;max-width:960px;margin:0 auto}
+.admin-header{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;
+}
+.admin-header h1{font-size:1.25rem}
+.admin-header a{color:#6b7280;font-size:.8125rem;text-decoration:none}
+.admin-header a:hover{color:#1a1a2e;text-decoration:underline}
+
+.stats-row{display:flex;gap:12px;margin-bottom:20px}
+.stat-card{
+  flex:1;background:#fff;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.stat-num{display:block;font-size:1.5rem;font-weight:700}
+.stat-lbl{font-size:.75rem;color:#6b7280;margin-top:2px}
+
+.toolbar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;padding:8px 16px;
+  font-size:.8125rem;font-weight:600;font-family:inherit;border:none;border-radius:8px;
+  cursor:pointer;transition:background .2s;
+}
+.btn-primary{background:#1a1a2e;color:#fff}
+.btn-primary:hover{background:#16213e}
+.btn-secondary{background:#e5e7eb;color:#1a1a2e}
+.btn-secondary:hover{background:#d1d5db}
+.btn-danger{background:#fee2e2;color:#dc2626}
+.btn-danger:hover{background:#fecaca}
+
+.table-wrap{
+  background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow-x:auto;
+}
+table{width:100%;border-collapse:collapse;font-size:.8125rem}
+th{
+  text-align:left;padding:10px 8px;font-size:.6875rem;font-weight:600;
+  color:#6b7280;text-transform:uppercase;letter-spacing:.03em;
+  border-bottom:1px solid #e5e7eb;position:sticky;top:0;background:#fff;
+}
+td{padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top;line-height:1.4}
+tr:hover td{background:#fafafa}
+
+.empty-state{
+  padding:40px 20px;text-align:center;color:#9ca3af;
+}
+.empty-state .icon{font-size:2rem;margin-bottom:8px}
+.empty-state p{font-size:.875rem}
+
+.footer{text-align:center;margin-top:20px;padding-bottom:24px;font-size:.75rem;color:#9ca3af}
+
+@media(max-width:480px){
+  .admin-page{padding:16px}
+  .stats-row{flex-direction:column}
+  .toolbar{flex-direction:column}
+  .toolbar .btn{width:100%;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- 登录界面 -->
+<div id="loginPage" class="login-page">
+  <div class="login-card">
+    <h1>管理后台</h1>
+    <p>请输入后台密码查看所有提交信息</p>
+    <input type="password" id="pwInput" class="login-input"
+           placeholder="后台密码" onkeydown="if(event.key==='Enter')login()">
+    <div id="loginError" class="login-error">密码错误，请重试</div>
+    <button class="btn btn-primary" onclick="login()" style="width:100%">进入后台</button>
+  </div>
+</div>
+
+<!-- 后台面板 -->
+<div id="adminPage" class="admin-page hidden">
+  <div class="admin-header">
+    <h1>联系信息管理</h1>
+    <div>
+      <a href="/qrcode" target="_blank">二维码</a>
+      <span style="color:#d1d5db;margin:0 8px">|</span>
+      <a href="/" target="_blank">返回表单</a>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-num" id="statTotal">-</span>
+      <span class="stat-lbl">总提交数</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num" id="statToday">-</span>
+      <span class="stat-lbl">今日提交</span>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-secondary" onclick="loadData()">刷新</button>
+    <button class="btn btn-primary" onclick="exportCSV()">导出 CSV</button>
+    <button class="btn btn-danger" onclick="confirmClear()">清除所有</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>姓名</th>
+          <th>地区</th>
+          <th>邮箱</th>
+          <th>电话</th>
+          <th style="min-width:120px">问题/诉求</th>
+          <th style="white-space:nowrap">时间</th>
+        </tr>
+      </thead>
+      <tbody id="dataBody"></tbody>
+    </table>
+    <div id="emptyState" class="empty-state hidden">
+      <div class="icon">📋</div>
+      <p>暂无提交记录</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    所有数据保存于服务器。建议定期导出备份。
+  </div>
+</div>
+
+<script>
+var ADMIN_PW = '';
+
+function getPw() {
+  return ADMIN_PW || localStorage.getItem('admin_pw') || '';
+}
+
+function setPw(pw) {
+  ADMIN_PW = pw;
+  localStorage.setItem('admin_pw', pw);
+}
+
+async function api(path) {
+  var pw = getPw();
+  if (!pw) return null;
+  try {
+    var res = await fetch(path + '?pw=' + encodeURIComponent(pw));
+    if (res.status === 401) {
+      alert('密码已失效，请重新登录');
+      localStorage.removeItem('admin_pw');
+      location.reload();
+      return null;
+    }
+    return await res.json();
+  } catch(e) {
+    console.error(e);
+    return null;
+  }
+}
+
+async function login() {
+  var pw = document.getElementById('pwInput').value;
+  if (!pw) return;
+  try {
+    var res = await fetch('/api/admin/verify', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({password: pw})
+    });
+    var data = await res.json();
+    if (data.success) {
+      setPw(pw);
+      document.getElementById('loginPage').classList.add('hidden');
+      document.getElementById('adminPage').classList.remove('hidden');
+      loadData();
+    } else {
+      document.getElementById('loginError').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('loginError').textContent = '网络错误';
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+async function loadData() {
+  var stats = await api('/api/admin/stats');
+  if (stats) {
+    document.getElementById('statTotal').textContent = stats.total;
+    document.getElementById('statToday').textContent = stats.today;
+  }
+
+  var list = await api('/api/admin/submissions');
+  if (!list) return;
+
+  var tbody = document.getElementById('dataBody');
+  var empty = document.getElementById('emptyState');
+
+  if (list.length === 0) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  var html = '';
+  for (var i = 0; i < list.length; i++) {
+    var s = list[i];
+    html += '<tr>' +
+      '<td><strong>' + esc(s.name) + '</strong></td>' +
+      '<td>' + esc(s.region || '-') + '</td>' +
+      '<td><a href="mailto:' + esc(s.email) + '">' + esc(s.email) + '</a></td>' +
+      '<td>' + esc(s.phone || '-') + '</td>' +
+      '<td>' + esc(trunc(s.message, 50)) + '</td>' +
+      '<td style="white-space:nowrap;font-size:.75rem">' + fmt(s.createdAt) + '</td>' +
+      '</tr>';
+  }
+  tbody.innerHTML = html;
+}
+
+function exportCSV() {
+  var pw = getPw();
+  if (pw) window.open('/api/admin/export?pw=' + encodeURIComponent(pw), '_blank');
+}
+
+function confirmClear() {
+  if (!confirm('确定要清除所有提交记录吗？此操作不可撤销！')) return;
+  if (!confirm('再次确认：真的要全部删除吗？')) return;
+  var pw = getPw();
+  if (!pw) return;
+  fetch('/api/admin/clear?pw=' + encodeURIComponent(pw), {method: 'DELETE'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) loadData();
+    });
+}
+
+function esc(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function trunc(s, n) {
+  if (!s) return '-';
+  return s.length > n ? s.slice(0, n) + '...' : s;
+}
+
+function fmt(t) {
+  if (!t) return '-';
+  var d = new Date(t);
+  return (d.getMonth() + 1) + '/' + d.getDate() + ' ' +
+    pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function pad(n) {
+  return n < 10 ? '0' + n : '' + n;
+}
+
+// 页面加载后，检查 localStorage 是否有密码
+window.addEventListener('DOMContentLoaded', function() {
+  var savedPw = localStorage.getItem('admin_pw');
+  if (savedPw) {
+    ADMIN_PW = savedPw;
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('adminPage').classList.remove('hidden');
+    loadData();
+  }
+});
+</script>
+</body>
+</html>

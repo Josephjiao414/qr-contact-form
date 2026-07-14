@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>联系信息登记</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="page">
+    <div id="successOverlay" class="success-overlay hidden"></div>
+    <div id="successModal" class="success-modal hidden">
+      <div class="success-icon">✓</div>
+      <h2>提交成功</h2>
+      <p id="successMsg">感谢您的参与！我们会尽快与您联系 🙏</p>
+      <button class="btn btn-secondary" onclick="closeSuccess()">关闭</button>
+    </div>
+
+    <div class="container">
+      <div class="card">
+        <div class="card-header">
+          <h1>联系信息登记</h1>
+          <p class="subtitle">留下您的联系方式，方便我们与您保持联系</p>
+        </div>
+
+        <form id="contactForm" novalidate>
+          <div class="form-group">
+            <label for="name">姓名（灵名）<span class="required">*</span></label>
+            <input type="text" id="name" name="name" placeholder="如何称呼您" required>
+          </div>
+          <div class="form-group">
+            <label for="region">地区</label>
+            <input type="text" id="region" name="region" placeholder="您来自哪里">
+          </div>
+          <div class="form-group">
+            <label for="email">邮箱 <span class="required">*</span></label>
+            <input type="email" id="email" name="email" placeholder="your@email.com" required>
+          </div>
+          <div class="form-group">
+            <label for="phone">联系电话</label>
+            <input type="tel" id="phone" name="phone" placeholder="手机或微信号">
+          </div>
+          <div class="form-group">
+            <label for="message">问题与诉求</label>
+            <textarea id="message" name="message" rows="4" placeholder="有什么想对我们说的…"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" id="submitBtn">
+            <span id="btnText">提交信息</span>
+            <span id="btnSpinner" class="spinner hidden"></span>
+          </button>
+        </form>
+
+        <div class="card-footer">
+          <p>您提交的信息仅用于活动后续联系</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/scripts.js"></script>
+</body>
+</html>
