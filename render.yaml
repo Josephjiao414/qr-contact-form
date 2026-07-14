@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: qr-contact-form
+    env: node
+    repo: https://github.com/Josephjiao414/qr-contact-form.git
+    buildCommand: pnpm install
+    startCommand: node server.js
+    envVars:
+      - key: ADMIN_PW
+        value: admin888
