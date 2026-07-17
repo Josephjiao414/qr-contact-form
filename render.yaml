@@ -8,3 +8,5 @@ services:
     envVars:
       - key: ADMIN_PW
         value: admin888
+      - key: DATABASE_URL
+        sync: false

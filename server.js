@@ -1,11 +1,20 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PW || 'admin888';
 const DATA_FILE = path.join(__dirname, 'data', 'submissions.json');
+const DATABASE_URL = process.env.DATABASE_URL;
+const TABLE_NAME = 'qr_form_submissions';
+const pool = DATABASE_URL
+  ? new Pool({
+      connectionString: DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    })
+  : null;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -23,6 +32,33 @@ function getSubmissions() {
   catch { return []; }
 }
 
+function normalizeSubmission(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    region: row.region || '',
+    email: row.email,
+    phone: row.phone || '',
+    message: row.message || '',
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : row.createdAt
+  };
+}
+
+async function ensureDatabase() {
+  if (!pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      region TEXT,
+      email TEXT NOT NULL,
+      phone TEXT,
+      message TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
 function saveSubmission(data) {
   const list = getSubmissions();
   data.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -30,6 +66,54 @@ function saveSubmission(data) {
   list.push(data);
   fs.writeFileSync(DATA_FILE, JSON.stringify(list, null, 2), 'utf8');
   return data;
+}
+
+async function saveSubmissionToDatabase(data) {
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const result = await pool.query(
+    `INSERT INTO ${TABLE_NAME} (id, name, region, email, phone, message)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, name, region, email, phone, message, created_at`,
+    [id, data.name, data.region, data.email, data.phone, data.message]
+  );
+  return normalizeSubmission(result.rows[0]);
+}
+
+async function listSubmissions() {
+  if (!pool) return getSubmissions().reverse();
+
+  const result = await pool.query(
+    `SELECT id, name, region, email, phone, message, created_at
+     FROM ${TABLE_NAME}
+     ORDER BY created_at DESC`
+  );
+  return result.rows.map(normalizeSubmission);
+}
+
+async function getStats() {
+  if (!pool) {
+    const list = getSubmissions();
+    const today = new Date().toISOString().slice(0, 10);
+    const todayCount = list.filter(s => s.createdAt && s.createdAt.slice(0, 10) === today).length;
+    return { total: list.length, today: todayCount };
+  }
+
+  const result = await pool.query(`
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE)::int AS today
+    FROM ${TABLE_NAME}
+  `);
+  return result.rows[0];
+}
+
+async function clearSubmissions() {
+  if (!pool) {
+    fs.writeFileSync(DATA_FILE, '[]', 'utf8');
+    return;
+  }
+
+  await pool.query(`DELETE FROM ${TABLE_NAME}`);
 }
 
 // 密码校验中间件
@@ -41,35 +125,50 @@ function requireAdmin(req, res, next) {
 
 // ===== 公开 API =====
 
-app.post('/api/submit', (req, res) => {
+app.post('/api/submit', async (req, res) => {
   const { name, region, email, phone, message } = req.body;
   if (!name || !name.trim()) return res.json({ success: false, message: '请填写姓名' });
   if (!email || !email.trim()) return res.json({ success: false, message: '请填写邮箱' });
 
-  const submission = saveSubmission({
-    name: name.trim(), region: (region || '').trim(),
-    email: email.trim(), phone: (phone || '').trim(),
-    message: (message || '').trim()
-  });
+  try {
+    const data = {
+      name: name.trim(), region: (region || '').trim(),
+      email: email.trim(), phone: (phone || '').trim(),
+      message: (message || '').trim()
+    };
+    const submission = pool
+      ? await saveSubmissionToDatabase(data)
+      : saveSubmission(data);
 
-  res.json({ success: true, message: '提交成功！感谢您的参与', id: submission.id });
+    res.json({ success: true, message: '提交成功！感谢您的参与', id: submission.id });
+  } catch (err) {
+    console.error('保存提交失败:', err);
+    res.status(500).json({ success: false, message: '提交失败，请稍后重试' });
+  }
 });
 
 // ===== 后台 API（需密码） =====
 
-app.get('/api/admin/submissions', requireAdmin, (req, res) => {
-  res.json(getSubmissions().reverse());
+app.get('/api/admin/submissions', requireAdmin, async (req, res) => {
+  try {
+    res.json(await listSubmissions());
+  } catch (err) {
+    console.error('读取提交失败:', err);
+    res.status(500).json({ error: '读取提交失败' });
+  }
 });
 
-app.get('/api/admin/stats', requireAdmin, (req, res) => {
-  const list = getSubmissions();
-  const today = new Date().toISOString().slice(0, 10);
-  const todayCount = list.filter(s => s.createdAt && s.createdAt.slice(0, 10) === today).length;
-  res.json({ total: list.length, today: todayCount });
+app.get('/api/admin/stats', requireAdmin, async (req, res) => {
+  try {
+    res.json(await getStats());
+  } catch (err) {
+    console.error('读取统计失败:', err);
+    res.status(500).json({ error: '读取统计失败' });
+  }
 });
 
-app.get('/api/admin/export', requireAdmin, (req, res) => {
-  const list = getSubmissions();
+app.get('/api/admin/export', requireAdmin, async (req, res) => {
+  const list = await listSubmissions();
   const header = '姓名,地区,邮箱,电话,问题与诉求,提交时间';
   const rows = list.map(s =>
     '"' + [s.name, s.region||'', s.email, s.phone||'', (s.message||'').replace(/"/g,'""'), s.createdAt||'']
@@ -85,9 +184,14 @@ app.post('/api/admin/verify', (req, res) => {
   res.json({ success: req.body.password === ADMIN_PASSWORD });
 });
 
-app.delete('/api/admin/clear', requireAdmin, (req, res) => {
-  fs.writeFileSync(DATA_FILE, '[]', 'utf8');
-  res.json({ success: true });
+app.delete('/api/admin/clear', requireAdmin, async (req, res) => {
+  try {
+    await clearSubmissions();
+    res.json({ success: true });
+  } catch (err) {
+    console.error('清除提交失败:', err);
+    res.status(500).json({ success: false });
+  }
 });
 
 // ===== 后台页面（受密码保护） =====
@@ -143,9 +247,11 @@ app.get('/qrcode', async (req, res) => {
 });
 
 // ===== 启动 =====
-app.listen(PORT, '0.0.0.0', () => {
+ensureDatabase().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('  -> QR Form 服务已启动');
+  console.log('  -> 数据存储: ' + (pool ? 'Supabase/Postgres 数据库' : '本地 JSON 文件'));
   console.log('  -> 表单: http://localhost:' + PORT);
   console.log('  -> 后台: http://localhost:' + PORT + '/admin');
   console.log('  -> 密码: ' + ADMIN_PASSWORD);
@@ -162,4 +268,8 @@ app.listen(PORT, '0.0.0.0', () => {
     }
   }
   console.log('');
+  });
+}).catch((err) => {
+  console.error('数据库初始化失败:', err);
+  process.exit(1);
 });
