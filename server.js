@@ -16,6 +16,7 @@ const pool = DATABASE_URL
       connectionTimeoutMillis: 10000
     })
   : null;
+let databaseReady = false;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -58,6 +59,12 @@ async function ensureDatabase() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  databaseReady = true;
+}
+
+async function ensureDatabaseReady() {
+  if (!pool || databaseReady) return;
+  await ensureDatabase();
 }
 
 function saveSubmission(data) {
@@ -83,38 +90,40 @@ async function saveSubmissionToDatabase(data) {
 async function listSubmissions() {
   if (!pool) return getSubmissions().reverse();
 
-  const result = await pool.query(
-    `SELECT id, name, region, email, phone, message, created_at
-     FROM ${TABLE_NAME}
-     ORDER BY created_at DESC`
-  );
-  return result.rows.map(normalizeSubmission);
+  try {
+    await ensureDatabaseReady();
+    const result = await pool.query(
+      `SELECT id, name, region, email, phone, message, created_at
+       FROM ${TABLE_NAME}
+       ORDER BY created_at DESC`
+    );
+    return [...result.rows.map(normalizeSubmission), ...getSubmissions()]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  } catch (err) {
+    console.error('数据库读取失败，改用本地记录:', err.message);
+    databaseReady = false;
+    return getSubmissions().reverse();
+  }
 }
 
 async function getStats() {
-  if (!pool) {
-    const list = getSubmissions();
-    const today = new Date().toISOString().slice(0, 10);
-    const todayCount = list.filter(s => s.createdAt && s.createdAt.slice(0, 10) === today).length;
-    return { total: list.length, today: todayCount };
-  }
-
-  const result = await pool.query(`
-    SELECT
-      COUNT(*)::int AS total,
-      COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE)::int AS today
-    FROM ${TABLE_NAME}
-  `);
-  return result.rows[0];
+  const list = await listSubmissions();
+  const today = new Date().toISOString().slice(0, 10);
+  const todayCount = list.filter(s => s.createdAt && s.createdAt.slice(0, 10) === today).length;
+  return { total: list.length, today: todayCount };
 }
 
 async function clearSubmissions() {
-  if (!pool) {
-    fs.writeFileSync(DATA_FILE, '[]', 'utf8');
-    return;
+  if (pool) {
+    try {
+      await ensureDatabaseReady();
+      await pool.query(`DELETE FROM ${TABLE_NAME}`);
+    } catch (err) {
+      console.error('数据库清空失败:', err.message);
+      databaseReady = false;
+    }
   }
-
-  await pool.query(`DELETE FROM ${TABLE_NAME}`);
+  fs.writeFileSync(DATA_FILE, '[]', 'utf8');
 }
 
 // 密码校验中间件
@@ -142,9 +151,19 @@ app.post('/api/submit', async (req, res) => {
       email: (email || '').trim(), phone: (phone || '').trim(),
       message: (message || '').trim()
     };
-    const submission = pool
-      ? await saveSubmissionToDatabase(data)
-      : saveSubmission(data);
+    let submission;
+    if (pool) {
+      try {
+        await ensureDatabaseReady();
+        submission = await saveSubmissionToDatabase(data);
+      } catch (dbError) {
+        console.error('数据库保存失败，改用本地记录:', dbError.message);
+        databaseReady = false;
+        submission = saveSubmission(data);
+      }
+    } else {
+      submission = saveSubmission(data);
+    }
 
     res.json({ success: true, message: '感谢您的登记。请添加联络同工微信，方便后续联系与交流。', id: submission.id });
   } catch (err) {
@@ -270,6 +289,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('');
 });
 
-ensureDatabase().catch((err) => {
+ensureDatabaseReady().catch((err) => {
   console.error('数据库初始化失败，网页仍可访问:', err.message);
 });
