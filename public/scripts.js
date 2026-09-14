@@ -43,12 +43,18 @@ form.addEventListener('submit', async (e) => {
     const data = await res.json();
     if (data.success) {
       form.reset();
-      showSuccess(data.message || '提交成功！');
+      showSubmissionResult(true, data.message || '提交成功！');
     } else {
-      alert(data.message || '提交失败，请稍后重试');
+      showSubmissionResult(
+        false,
+        (data.message || '提交失败，请稍后重试') + '。您填写的信息尚未保存，请稍后重试，或添加联络同工微信。'
+      );
     }
   } catch (err) {
-    alert('网络错误，请检查连接后重试');
+    showSubmissionResult(
+      false,
+      '网络连接异常，您填写的信息尚未保存。请检查网络后重试，或添加联络同工微信。'
+    );
   } finally {
     setLoading(false);
   }
@@ -87,18 +93,24 @@ function setLoading(v) {
   btnSpinner.classList.toggle('hidden', !v);
 }
 
-// ===== 成功弹窗 =====
-function showSuccess(msg) {
-  document.getElementById('successMsg').textContent = msg;
-  document.getElementById('successOverlay').classList.remove('hidden');
+// ===== 提交结果弹窗 =====
+function showSubmissionResult(success, msg) {
   const modal = document.getElementById('successModal');
+  const icon = document.getElementById('submissionStatusIcon');
+
+  modal.classList.toggle('is-error', !success);
+  icon.textContent = success ? '✓' : '!';
+  document.getElementById('successTitle').textContent = success ? '提交成功' : '提交未完成';
+  document.getElementById('successMsg').textContent = msg;
+  document.getElementById('submissionModalButton').textContent = success ? '暂时关闭' : '返回继续提交';
+  document.getElementById('successOverlay').classList.remove('hidden');
   modal.classList.remove('hidden');
   modal.focus();
 }
 
-function closeSuccess() {
+function closeSubmissionModal() {
   document.getElementById('successOverlay').classList.add('hidden');
   document.getElementById('successModal').classList.add('hidden');
 }
 
-document.getElementById('successOverlay').addEventListener('click', closeSuccess);
+document.getElementById('successOverlay').addEventListener('click', closeSubmissionModal);
