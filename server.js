@@ -12,7 +12,8 @@ const TABLE_NAME = 'qr_form_submissions';
 const pool = DATABASE_URL
   ? new Pool({
       connectionString: DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 10000
     })
   : null;
 
@@ -247,8 +248,7 @@ app.get('/qrcode', async (req, res) => {
 });
 
 // ===== 启动 =====
-ensureDatabase().then(() => {
-  app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('  -> QR Form 服务已启动');
   console.log('  -> 数据存储: ' + (pool ? 'Supabase/Postgres 数据库' : '本地 JSON 文件'));
@@ -268,8 +268,8 @@ ensureDatabase().then(() => {
     }
   }
   console.log('');
-  });
-}).catch((err) => {
-  console.error('数据库初始化失败:', err);
-  process.exit(1);
+});
+
+ensureDatabase().catch((err) => {
+  console.error('数据库初始化失败，网页仍可访问:', err.message);
 });
