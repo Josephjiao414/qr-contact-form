@@ -146,7 +146,7 @@ app.post('/api/submit', async (req, res) => {
       ? await saveSubmissionToDatabase(data)
       : saveSubmission(data);
 
-    res.json({ success: true, message: '提交成功，我们会按照您留下的方式与您联系。', id: submission.id });
+    res.json({ success: true, message: '感谢您的登记。请添加联络同工微信，方便后续联系与交流。', id: submission.id });
   } catch (err) {
     console.error('保存提交失败:', err);
     res.status(500).json({ success: false, message: '提交失败，请稍后重试' });

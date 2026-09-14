@@ -9,11 +9,18 @@
 <body>
   <div class="page">
     <div id="successOverlay" class="success-overlay hidden"></div>
-    <div id="successModal" class="success-modal hidden">
+    <div id="successModal" class="success-modal hidden" role="dialog" aria-modal="true" aria-labelledby="successTitle" tabindex="-1">
       <div class="success-icon">✓</div>
-      <h2>提交成功</h2>
+      <h2 id="successTitle">提交成功</h2>
       <p id="successMsg">感谢您的参与，我们会按照您留下的方式与您联系。</p>
-      <button type="button" class="btn btn-secondary" onclick="closeSuccess()">关闭</button>
+      <div class="wechat-contact">
+        <p class="wechat-contact-title">添加联络同工微信</p>
+        <a class="wechat-qr-link" href="/wechat-contact-qr.png" target="_blank" rel="noopener" aria-label="点击查看联络同工微信二维码大图">
+          <img src="/wechat-contact-qr.png" width="650" height="650" alt="联络同工微信二维码">
+        </a>
+        <p class="wechat-contact-hint">点击二维码查看大图，长按保存后可在微信中识别添加。</p>
+      </div>
+      <button type="button" class="btn btn-secondary" onclick="closeSuccess()">暂时关闭</button>
     </div>
 
     <div class="container">

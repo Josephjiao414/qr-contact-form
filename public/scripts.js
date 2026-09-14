@@ -91,7 +91,9 @@ function setLoading(v) {
 function showSuccess(msg) {
   document.getElementById('successMsg').textContent = msg;
   document.getElementById('successOverlay').classList.remove('hidden');
-  document.getElementById('successModal').classList.remove('hidden');
+  const modal = document.getElementById('successModal');
+  modal.classList.remove('hidden');
+  modal.focus();
 }
 
 function closeSuccess() {
