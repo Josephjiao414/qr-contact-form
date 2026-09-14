@@ -1,3 +1,7 @@
+databases:
+  - name: qr-contact-form-db
+    plan: free
+
 services:
   - type: web
     name: qr-contact-form
@@ -9,4 +13,6 @@ services:
       - key: ADMIN_PW
         sync: false
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: qr-contact-form-db
+          property: connectionString

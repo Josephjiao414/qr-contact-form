@@ -90,20 +90,13 @@ async function saveSubmissionToDatabase(data) {
 async function listSubmissions() {
   if (!pool) return getSubmissions().reverse();
 
-  try {
-    await ensureDatabaseReady();
-    const result = await pool.query(
-      `SELECT id, name, region, email, phone, message, created_at
-       FROM ${TABLE_NAME}
-       ORDER BY created_at DESC`
-    );
-    return [...result.rows.map(normalizeSubmission), ...getSubmissions()]
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  } catch (err) {
-    console.error('数据库读取失败，改用本地记录:', err.message);
-    databaseReady = false;
-    return getSubmissions().reverse();
-  }
+  await ensureDatabaseReady();
+  const result = await pool.query(
+    `SELECT id, name, region, email, phone, message, created_at
+     FROM ${TABLE_NAME}
+     ORDER BY created_at DESC`
+  );
+  return result.rows.map(normalizeSubmission);
 }
 
 async function getStats() {
@@ -115,13 +108,9 @@ async function getStats() {
 
 async function clearSubmissions() {
   if (pool) {
-    try {
-      await ensureDatabaseReady();
-      await pool.query(`DELETE FROM ${TABLE_NAME}`);
-    } catch (err) {
-      console.error('数据库清空失败:', err.message);
-      databaseReady = false;
-    }
+    await ensureDatabaseReady();
+    await pool.query(`DELETE FROM ${TABLE_NAME}`);
+    return;
   }
   fs.writeFileSync(DATA_FILE, '[]', 'utf8');
 }
@@ -151,19 +140,10 @@ app.post('/api/submit', async (req, res) => {
       email: (email || '').trim(), phone: (phone || '').trim(),
       message: (message || '').trim()
     };
-    let submission;
-    if (pool) {
-      try {
-        await ensureDatabaseReady();
-        submission = await saveSubmissionToDatabase(data);
-      } catch (dbError) {
-        console.error('数据库保存失败，改用本地记录:', dbError.message);
-        databaseReady = false;
-        submission = saveSubmission(data);
-      }
-    } else {
-      submission = saveSubmission(data);
-    }
+    if (pool) await ensureDatabaseReady();
+    const submission = pool
+      ? await saveSubmissionToDatabase(data)
+      : saveSubmission(data);
 
     res.json({ success: true, message: '感谢您的登记。请添加联络同工微信，方便后续联系与交流。', id: submission.id });
   } catch (err) {
