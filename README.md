@@ -10,11 +10,11 @@
 
 | 页面 | 说明 |
 |------|------|
-| `/` | 表单页面 — 填写姓名、地区、邮箱、电话、诉求 |
+| `/` | 表单页面 — 填写姓名、地区、联系方式与交流问题 |
 | `/admin` | 后台管理 — 查看所有提交，导出 CSV |
 | `/qrcode` | 二维码页面 — 打印贴活动现场 |
 
-后台密码：启动时通过环境变量 `ADMIN_PW` 设置（本地默认 `admin888`）
+后台密码：启动时必须通过环境变量 `ADMIN_PW` 设置；未设置时后台接口不可用。
 
 数据存储：
 
@@ -36,7 +36,7 @@ Render 是全自助的，你只需要做这 3 步：
 - 页面会自动加载 `render.yaml` 里的配置，检查一下是不是对的
 
 **3. 改密码并部署**
-- 在 **Environment Variables** 里，把 `ADMIN_PW` 的值从 `admin888` 改成你自己的密码
+- 在 **Environment Variables** 里设置一个新的强密码 `ADMIN_PW`
 - 如果要长期保存提交内容，在 **Environment Variables** 里新增 `DATABASE_URL`，填入 Supabase 的 Postgres 连接字符串
 - 点 **Create Web Service**
 - 等 2-3 分钟，部署完成后会显示 `https://qr-contact-form.onrender.com`

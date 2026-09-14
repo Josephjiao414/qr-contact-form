@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = process.env.ADMIN_PW || 'admin888';
+const ADMIN_PASSWORD = process.env.ADMIN_PW;
 const DATA_FILE = path.join(__dirname, 'data', 'submissions.json');
 const DATABASE_URL = process.env.DATABASE_URL;
 const TABLE_NAME = 'qr_form_submissions';
@@ -118,6 +118,9 @@ async function clearSubmissions() {
 
 // 密码校验中间件
 function requireAdmin(req, res, next) {
+  if (!ADMIN_PASSWORD) {
+    return res.status(503).json({ error: '后台密码尚未配置' });
+  }
   const pw = req.query.pw || req.headers['x-admin-pw'];
   if (pw === ADMIN_PASSWORD) return next();
   return res.status(401).json({ error: '密码错误' });
@@ -128,19 +131,21 @@ function requireAdmin(req, res, next) {
 app.post('/api/submit', async (req, res) => {
   const { name, region, email, phone, message } = req.body;
   if (!name || !name.trim()) return res.json({ success: false, message: '请填写姓名' });
-  if (!email || !email.trim()) return res.json({ success: false, message: '请填写邮箱' });
+  if ((!email || !email.trim()) && (!phone || !phone.trim())) {
+    return res.json({ success: false, message: '请至少填写一种联系方式' });
+  }
 
   try {
     const data = {
       name: name.trim(), region: (region || '').trim(),
-      email: email.trim(), phone: (phone || '').trim(),
+      email: (email || '').trim(), phone: (phone || '').trim(),
       message: (message || '').trim()
     };
     const submission = pool
       ? await saveSubmissionToDatabase(data)
       : saveSubmission(data);
 
-    res.json({ success: true, message: '提交成功！感谢您的参与', id: submission.id });
+    res.json({ success: true, message: '提交成功，我们会按照您留下的方式与您联系。', id: submission.id });
   } catch (err) {
     console.error('保存提交失败:', err);
     res.status(500).json({ success: false, message: '提交失败，请稍后重试' });
@@ -181,7 +186,7 @@ app.get('/api/admin/export', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/verify', (req, res) => {
-  res.json({ success: req.body.password === ADMIN_PASSWORD });
+  res.json({ success: Boolean(ADMIN_PASSWORD) && req.body.password === ADMIN_PASSWORD });
 });
 
 app.delete('/api/admin/clear', requireAdmin, async (req, res) => {
@@ -198,7 +203,6 @@ app.delete('/api/admin/clear', requireAdmin, async (req, res) => {
 
 app.get('/admin', (req, res) => {
   // 如果 URL 带 ?pw=xxx 并且密码正确，直接进入面板
-  const preAuth = (req.query.pw === ADMIN_PASSWORD) ? ADMIN_PASSWORD : '';
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
@@ -229,9 +233,6 @@ app.get('/qrcode', async (req, res) => {
 '.url-text a:hover{text-decoration:underline}' +
 '.btn{display:inline-block;margin-top:24px;padding:10px 24px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;font-size:.9375rem;font-weight:600;text-decoration:none;cursor:pointer}' +
 '.btn:hover{background:#16213e}' +
-'.admin-link{display:block;margin-top:16px;font-size:.75rem;color:#9ca3af}' +
-'.admin-link a{color:#9ca3af;text-decoration:none}' +
-'.admin-link a:hover{color:#1a1a2e}' +
 '</style></head><body>' +
 '<div class="card">' +
   '<h1>扫描二维码打开表单</h1>' +
@@ -239,7 +240,6 @@ app.get('/qrcode', async (req, res) => {
   '<div class="qr-wrap"><img src="' + qrDataUrl + '" alt="QR Code"></div>' +
   '<div class="url-text">或访问 <a href="' + url + '" target="_blank">' + url + '</a></div>' +
   '<a href="/" class="btn">打开表单</a>' +
-  '<div class="admin-link">管理员：<a href="/admin" target="_blank">后台入口</a></div>' +
 '</div></body></html>');
   } catch (err) {
     res.status(500).send('二维码生成失败');
@@ -254,7 +254,7 @@ ensureDatabase().then(() => {
   console.log('  -> 数据存储: ' + (pool ? 'Supabase/Postgres 数据库' : '本地 JSON 文件'));
   console.log('  -> 表单: http://localhost:' + PORT);
   console.log('  -> 后台: http://localhost:' + PORT + '/admin');
-  console.log('  -> 密码: ' + ADMIN_PASSWORD);
+  console.log('  -> 后台密码: ' + (ADMIN_PASSWORD ? '已配置' : '未配置'));
   console.log('  -> 二维码: http://localhost:' + PORT + '/qrcode');
   console.log('');
 

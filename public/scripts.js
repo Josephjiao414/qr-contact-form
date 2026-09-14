@@ -9,12 +9,17 @@ form.addEventListener('submit', async (e) => {
 
   const name = document.getElementById('name').value.trim();
   const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
 
   if (!name) { markError('name', '请填写您的姓名'); return; }
   clearError('name');
 
-  if (!email) { markError('email', '请填写您的邮箱'); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!phone && !email) {
+    markError('phone', '请至少留下电话、微信号或邮箱中的一种联系方式'); return;
+  }
+  clearError('phone');
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     markError('email', '请输入有效的邮箱地址'); return;
   }
   clearError('email');
@@ -23,7 +28,7 @@ form.addEventListener('submit', async (e) => {
     name,
     region: document.getElementById('region').value.trim(),
     email,
-    phone: document.getElementById('phone').value.trim(),
+    phone,
     message: document.getElementById('message').value.trim()
   };
 
@@ -53,6 +58,7 @@ form.addEventListener('submit', async (e) => {
 function markError(id, msg) {
   const el = document.getElementById(id);
   el.classList.add('input-error');
+  el.setAttribute('aria-invalid', 'true');
   const errEl = el.nextElementSibling;
   if (errEl && errEl.classList.contains('error-text')) {
     errEl.textContent = msg;
@@ -61,7 +67,13 @@ function markError(id, msg) {
 }
 
 function clearError(id) {
-  document.getElementById(id).classList.remove('input-error');
+  const el = document.getElementById(id);
+  el.classList.remove('input-error');
+  el.setAttribute('aria-invalid', 'false');
+  const errEl = el.nextElementSibling;
+  if (errEl && errEl.classList.contains('error-text')) {
+    errEl.textContent = '';
+  }
 }
 
 document.querySelectorAll('input, textarea').forEach(el => {

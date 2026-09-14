@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>联系信息登记</title>
+  <title>9月16日牧会者集会｜交流登记</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -12,46 +12,52 @@
     <div id="successModal" class="success-modal hidden">
       <div class="success-icon">✓</div>
       <h2>提交成功</h2>
-      <p id="successMsg">感谢您的参与！我们会尽快与您联系 🙏</p>
-      <button class="btn btn-secondary" onclick="closeSuccess()">关闭</button>
+      <p id="successMsg">感谢您的参与，我们会按照您留下的方式与您联系。</p>
+      <button type="button" class="btn btn-secondary" onclick="closeSuccess()">关闭</button>
     </div>
 
     <div class="container">
       <div class="card">
         <div class="card-header">
-          <h1>联系信息登记</h1>
-          <p class="subtitle">留下您的联系方式，方便我们与您保持联系</p>
+          <p class="brand">全球华人教牧同工联盟</p>
+          <h1>9月16日第三次牧会者集会</h1>
+          <p class="event-meta">约拿牧师带领 · 晚上 · 线上聚会</p>
+          <p class="subtitle">欢迎留下联系方式，以及您在牧养或事工中希望进一步交流的问题。</p>
         </div>
 
         <form id="contactForm" novalidate>
           <div class="form-group">
-            <label for="name">姓名（灵名）<span class="required">*</span></label>
-            <input type="text" id="name" name="name" placeholder="如何称呼您" required>
+            <label for="name">姓名／称呼<span class="required">*</span></label>
+            <input type="text" id="name" name="name" placeholder="我们应当如何称呼您" autocomplete="name" aria-describedby="nameError" required>
+            <p class="error-text" id="nameError" aria-live="polite"></p>
           </div>
           <div class="form-group">
             <label for="region">地区</label>
-            <input type="text" id="region" name="region" placeholder="您来自哪里">
+            <input type="text" id="region" name="region" placeholder="城市、地区或所在教会">
           </div>
           <div class="form-group">
-            <label for="email">邮箱 <span class="required">*</span></label>
-            <input type="email" id="email" name="email" placeholder="your@email.com" required>
+            <label for="phone">联系电话／微信号<span class="required">*</span></label>
+            <input type="text" id="phone" name="phone" placeholder="留下方便联系您的方式" autocomplete="tel" aria-describedby="phoneError">
+            <p class="error-text" id="phoneError" aria-live="polite"></p>
           </div>
           <div class="form-group">
-            <label for="phone">联系电话</label>
-            <input type="tel" id="phone" name="phone" placeholder="手机或微信号">
+            <label for="email">邮箱（选填）</label>
+            <input type="email" id="email" name="email" placeholder="如常用邮箱方便联系，也可以填写" autocomplete="email" aria-describedby="emailError">
+            <p class="error-text" id="emailError" aria-live="polite"></p>
           </div>
           <div class="form-group">
-            <label for="message">问题与诉求</label>
-            <textarea id="message" name="message" rows="4" placeholder="有什么想对我们说的…"></textarea>
+            <label for="message">希望交流的问题（选填）</label>
+            <textarea id="message" name="message" rows="4" placeholder="例如：牧养、教会复兴、同工配搭或其他实际困难"></textarea>
           </div>
+          <p class="privacy-note">提交后，联络同工会按照您留下的方式联系。信息仅用于本次集会通知和后续牧养交流，不作公开展示。</p>
           <button type="submit" class="btn btn-primary" id="submitBtn">
-            <span id="btnText">提交信息</span>
+            <span id="btnText">提交交流登记</span>
             <span id="btnSpinner" class="spinner hidden"></span>
           </button>
         </form>
 
         <div class="card-footer">
-          <p>您提交的信息仅用于活动后续联系</p>
+          <a href="https://global-chinese-pastors-alliance-1.onrender.com/">返回全球华人教牧同工联盟网站</a>
         </div>
       </div>
     </div>
